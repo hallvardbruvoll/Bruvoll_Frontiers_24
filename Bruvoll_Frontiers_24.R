@@ -36,6 +36,7 @@ levels(my_settlements$Settlement)
 ## Also, try to resolve the Vrable neighbourhood issue (remove the double
 ## entry, rename column to just Neighbourhood)
 
+# Testing connection to github repo
 
 # Analysis ----------------------------------------------------------------
 
