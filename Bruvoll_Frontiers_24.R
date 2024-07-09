@@ -12,33 +12,45 @@ tryp_house_sizes <- read.csv2("Data/trypillia_house_sizes.csv",
                               encoding = "UTF-8") %>%
   mutate_if(is.character, as.factor)
 
-# Tidy the data input so that the following code becomes redundant:
+vrable_neigh <- filter(lbk_house_sizes, neighbourhood_logic == TRUE) %>%
+  rename(Quarter = site_name_ill_short) %>%
+  select(house_size, mean_orien, Quarter)
 
-## Make object with settlements and house sizes
-my_settlements <- bind_rows(filter(zitava_sites_only, region == "zitava_valley") %>%
-                              dplyr::select(house_size, Settlement, site_name_ill_short) %>%
-                              mutate(Culture = "Linear Pottery") %>%
-                              rename(site_name_ill = site_name_ill_short),
-                            tryp_house_sizes %>%
-                              dplyr::select(house_size, Settlement, site_name_ill, culture) %>%
-                              rename(Culture = culture))
+lbk_house_sizes <- filter(lbk_house_sizes, neighbourhood_logic == FALSE &
+                            region == "zitava_valley")
 
-## Filter out settlements with n < 10 (too small for dist.fit); add Gini index
-my_settlements <- my_settlements %>%
+lbk_house_sizes <- left_join(lbk_house_sizes, vrable_neigh,
+                             by = c("mean_orien", "house_size"))
+
+my_settlements <- bind_rows(lbk_house_sizes %>%
+  dplyr::select(house_size, Settlement, site_name_ill_short,
+                mean_orien, Quarter) %>%
+  mutate(Culture = "Linear Pottery") %>%
+  rename(site_name_ill = site_name_ill_short),
+  tryp_house_sizes %>%
+    dplyr::select(house_size, Settlement, site_name_ill, culture, quarter) %>%
+    rename(Culture = culture,
+           Quarter = quarter)) %>%
   group_by(Settlement) %>%
-  filter(n() > 10) %>%
-  mutate(Gini = round(Gini(house_size), 3))
+  filter(n() > 10) # leaves out Vráble 'Drakovo' and Slazany.
+# 4354 houses and 6 variables.
 
-## Remove unused factor levels (should be 13 settlements left)
-my_settlements <- droplevels.data.frame(my_settlements)
-levels(my_settlements$Settlement)
+my_settlements$site_name_ill <- as.factor(gsub(
+  pattern = "Horn\u00fd", replacement = "Horn\u00fd Ohaj",
+  x = my_settlements$site_name_ill))
 
-## Also, try to resolve the Vrable neighbourhood issue (remove the double
-## entry, rename column to just Neighbourhood)
+write.csv2(my_settlements, file = "Data/my_settlements.csv",
+           row.names = FALSE)
 
-# Testing connection to github repo
+my_settlements <- read.csv2("Data/my_settlements.csv", encoding = "UTF-8") %>%
+  mutate_if(is.character, as.factor)
+
+slovak_characters <- read.csv2("Data/site_names_unicode.csv",
+                               encoding = "UTF-8", rownam)
+
 
 # Analysis ----------------------------------------------------------------
+#  mutate(Gini = round(Gini(house_size), 3))
 
 
 
