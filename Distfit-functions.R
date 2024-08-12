@@ -74,13 +74,13 @@ models.xy <- function(models) {
 }
 
 #Table with input and columns for storing results
-dist.fit.object <- function(data.vector, set) {
+dist.fit.object <- function(data.vector, set, culture) {
   object <- tibble(value = data.vector,
                    rank = min_rank(value),
                    ccdf = round((length(rank)-rank+1)/length(rank), 4),
                    model = FALSE,
                    tail = NA, xmin = NA, ntail = NA, par1 = NA, par2 = NA,
-                   set = set, Gini = NA)
+                   set = set, Gini = NA, Culture = culture)
   return(object)
 }
 
@@ -131,16 +131,17 @@ add.results <- function(data, tail_models, AIC.results) {
 # "x" and "set" must be in the same order, preferably as columns in a table
 # For this paper, "set" corresponds to settlement,
 # quarter or time sample vector, and "x" are house sizes.
-dist.fit.all <- function(x, set){
-  data <- tibble(x, set = as.factor(set)) %>%
+dist.fit.all <- function(x, set, culture=NA){
+  data <- tibble(x, set = as.factor(set), culture = as.factor(culture)) %>%
     group_by(set) # Group to analyse each set separately
   sets <- levels(data$set) # Causes output to be in alphabetic order by sets
   output <- tibble()
   for (i in 1:length(sets)) {
     # Filter out one set and create object with necessary columns
-    one_set <- dist.fit.object(data.vector = filter(data, set == sets[i]) %>%
-                                 pull(x),
-                               set = sets[i])
+    one_sample <- filter(data, set == sets[i])
+    one_set <- dist.fit.object(data.vector = one_sample$x,
+                               set = sets[i],
+                               culture = one_sample$culture[1])
     one_set_models <- tail.models(one_set$value) # Fit models to data
     one_set_AIC <- aic.selection(tail_models = one_set_models) # Compare models
     one_set <- add.results(data = one_set, # Add param values from best fit
@@ -151,7 +152,7 @@ dist.fit.all <- function(x, set){
     one_model <- one_model %>%
       mutate(tail = one_set$tail[1], xmin = one_set$xmin[1],
              par1 = one_set$par1[1], par2 = one_set$par2[1],
-             set = one_set$set[1])
+             set = one_set$set[1], Culture = one_set$Culture[1])
     # Add results for each set to output
     output <- bind_rows(output, one_set, one_model)
   }
@@ -162,6 +163,7 @@ dist.fit.all <- function(x, set){
 
 # Fit models to house-size data
 # Weibull is excluded here since it is more general
+# Underlying function:
 dist.models <- function(data) { # again, data is a cont. num. vector
   norm.model <- fitdistr(data, "normal")
   lnorm.model <- fitdistr(data, "lognormal")
@@ -175,7 +177,8 @@ dist.models <- function(data) { # again, data is a cont. num. vector
 }
 
 # Loop for grouped data and select models with AICc
-whole.dist <- function(x, set, culture) {
+# Analysis function (dependent on the previous):
+whole.dist <- function(x, set, culture=NA) {
   data <- tibble(x, set = as.factor(set), culture) %>%
     group_by(set)
   sets <- levels(data$set)
@@ -206,15 +209,17 @@ whole.dist <- function(x, set, culture) {
 # positive result. See text for further discussion.
 
 set.seed(100)
-data <- bind_rows(tibble(x = rlnorm(1000, 0.3, 2), set = "ln"),
-                  tibble(x = rexp(1000, 0.125), set = "exp"),
-                  tibble(x = rweibull(1000, 0.5, 3), set = "str_exp"),
-                  tibble(x = rplcon(100, 15, 2.5), set = "pl")) %>%
+data <- bind_rows(tibble(x = rlnorm(1000, 0.3, 2), set = "ln", culture = "A"),
+                  tibble(x = rexp(1000, 0.125), set = "exp", culture = "A"),
+                  tibble(x = rweibull(1000, 0.5, 3), set = "str_exp",
+                         culture = "B"),
+                  tibble(x = rplcon(100, 15, 2.5), set = "pl",
+                         culture = "B")) %>%
   filter(x > 15) %>%
   group_by(set) %>%
   slice_sample(n = 100)
 
-test <- dist.fit.all(x = data$x, set = data$set)
+test <- dist.fit.all(x = data$x, set = data$set, culture = data$culture)
 
 ggplot(filter(test, model == FALSE))+
   aes(x = value, y = ccdf)+
@@ -248,7 +253,7 @@ data3 <- bind_rows(tibble(x = rexp(100, 0.125), set = "exp"),
                    tibble(x = rlnorm(100, 0.3, 2), set = "ln"),
                   tibble(x = rnorm(100, 50, 5), set = "norm"))
 
-test_whole <- whole.dist(x = data3$x, set = data3$set, culture = "Norwegian")
+test_whole <- whole.dist(x = data3$x, set = data3$set)
 # Results table: First column is input series,
 # second column is selected best model, and then estimated parameter values.
 test_whole
