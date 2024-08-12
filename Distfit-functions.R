@@ -8,11 +8,11 @@ library(scales) # for handling log-scales in plots
 library(latex2exp) # for tex expressions inside ggplot code
 library(cowplot) # for combining multiple plots
 library(kableExtra) # for printable results tables
-library(tidyverse)  # general synthax (mainly dplyr and ggplot2)
+library(tidyverse)  # general syntax (mainly dplyr and ggplot2)
 
 # Wrapper and loop functions ----------------------------------------------
 
-#Fit a power-law, lognormal, exponential and stretched exponential
+#Fit a power-law, log-normal, exponential and stretched exponential
 #(Weibull cCDF) models to the data by MLE, and estimating the best
 #power-law xmin through KS-testing (cf. @clauset2009; @gillespie2015).
 tail.models <- function(data) { #"data" must be a continuous numeric vector
@@ -40,7 +40,7 @@ tail.models <- function(data) { #"data" must be a continuous numeric vector
 #cutoff, discussed in the Clauset et al. (2009) paper, not implemented in
 #the poweRlaw package (May 2023). The function was borrowed from
 #"https://github.com/jeffalstott/powerlaw/tree/master/testing/
-#pli-R-v0.0.3-2007-07-25", written by C. Shalizi, co-author of the paper.
+#pli-R-v0.0.3-2007-07-25", written by C. Shalizi, co-author of the 2009 paper.
 #Because of copyright issues, this model is not included here. However, when
 #included it never passed as the best fit for the data used in this thesis
 #(note that the code does not include any function for setting xmin, unlike
@@ -62,7 +62,8 @@ extract.xy <- function(models) { #This function goes into the next one below
   return(model_xy)
 }
 
-models.xy <- function(models) { #Loop the above function for all input models
+#Loop the above function for all input models
+models.xy <- function(models) {
   output <- tibble()
   for (i in 1:length(models)) {
     modxy <- extract.xy(models = models[[i]]) %>%
@@ -72,7 +73,7 @@ models.xy <- function(models) { #Loop the above function for all input models
   return(output)
 }
 
-# Table with input and columns for storing results
+#Table with input and columns for storing results
 dist.fit.object <- function(data.vector, set) {
   object <- tibble(value = data.vector,
                    rank = min_rank(value),
@@ -125,10 +126,12 @@ add.results <- function(data, tail_models, AIC.results) {
   return(data)
 }
 
+# The function that we actually end up using for analysis.
+# It depends on all the above.
+# "x" and "set" must be in the same order, preferably as columns in a table
+# For this paper, "set" corresponds to settlement,
+# quarter or time sample vector, and "x" are house sizes.
 dist.fit.all <- function(x, set){
-  # "x" and "set" must be in the same order, preferably as columns in a table
-  # For this paper, "set" corresponds to settlement,
-  # quarter or time sample vector
   data <- tibble(x, set = as.factor(set)) %>%
     group_by(set) # Group to analyse each set separately
   sets <- levels(data$set) # Causes output to be in alphabetic order by sets
@@ -241,14 +244,21 @@ ggplot(filter(test2, model == FALSE))+
   scale_x_log10()
 
 # Whole distribution:
-data3 <- bind_rows(tibble(x = rlnorm(100, 0.3, 2), set = "ln"),
-                  tibble(x = rexp(100, 0.125), set = "exp"),
+data3 <- bind_rows(tibble(x = rexp(100, 0.125), set = "exp"),
+                   tibble(x = rlnorm(100, 0.3, 2), set = "ln"),
                   tibble(x = rnorm(100, 50, 5), set = "norm"))
+
 test_whole <- whole.dist(x = data3$x, set = data3$set, culture = "Norwegian")
+# Results table: First column is input series,
+# second column is selected best model, and then estimated parameter values.
 test_whole
 
+# Just to illustrate what the data looks like
 ggplot(data3)+
   aes(x, group = set)+
   geom_density(aes(colour = set))
+
+# Clean up
+rm(data, data2, data3, test, test_whole, test2)
 
 # END of dist-fit script

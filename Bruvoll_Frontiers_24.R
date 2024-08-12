@@ -1,10 +1,7 @@
 # Frontiers paper, script for analysis and plots
-library(tidyverse)
-library(poweRlaw)
-
 
 # Load custom functions with dependencies
-source("Analysis/Distfit-functions.R")
+source("Distfit-functions.R")
 
 # Data preparation --------------------------------------------------------
   # Load data sets
@@ -20,7 +17,9 @@ my_settlements <- read.csv2("Data/my_settlements.csv",
 
 # Settlements
 
+# Quarters
 
+# Time samples
 
 
 # Figures -----------------------------------------------------------------
