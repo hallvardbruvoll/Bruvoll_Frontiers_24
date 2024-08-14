@@ -5,9 +5,9 @@ library(AICcmodavg) # for multiple model selection by AIC instead of
                     # Vuong's pairwise log-likelihood test (poweRlaw)
 library(ineq) # for Gini index
 library(scales) # for handling log-scales in plots
-library(latex2exp) # for tex expressions inside ggplot code
 library(cowplot) # for combining multiple plots
-library(kableExtra) # for printable results tables
+library(flextable) # for printable results tables
+library(officer) # export tables to MS Words
 library(tidyverse)  # general syntax (mainly dplyr and ggplot2)
 
 # Wrapper and loop functions ----------------------------------------------

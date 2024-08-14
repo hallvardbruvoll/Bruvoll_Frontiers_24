@@ -230,15 +230,141 @@ Fig_Vrable_cCDF <- plot_grid(fig_vrable_ccdf_a, fig_vrable_ccdf_b,
 
 save(Fig_Vrable_cCDF, file = "Figures/Fig_Vrable_cCDF.RData")
 
-DELETE START
 
-# N count per time sample, list
-vrable_samples %>%
-  group_by(sample) %>%
-  summarise(n = n(),
-            gini = Gini(house_size))
-# Drop Gini, filter samples with n>10
-# Do I need a graph of the temporal dynamics of house count in Vráble?
-DELETE END
+# Results tables ----------------------------------------------------------
 
+# Settlements
+
+# Test the entire distributions and make table of results
+Tab_Settlements <- whole.dist(x = my_settlements$house_size,
+                               set = my_settlements$site_name_ill,
+                               culture = my_settlements$Culture)
+
+# Add results for tails, merge and tidy up
+tab_settle_tails <- filter(settlements_results, model == FALSE) %>%
+  group_by(set, tail, par1, xmin, ntail) %>%
+  summarise() %>%
+  ungroup() %>%
+  mutate(Settlement = set, Tail = tail, T_Par1 = round(par1, 3),
+         xmin = round(xmin, 1), N_tail = ntail, .keep = "none")
+
+Tab_Settlements <- left_join(Tab_Settlements, tab_settle_tails,
+                             by = "Settlement") %>%
+  relocate(c(N, N_tail), .after = xmin) %>%
+  relocate(c(Tail, T_Par1), .after = Par2) %>%
+  mutate(Tail_P = round(N_tail/N, 2)) %>%
+  relocate(c(Gini, Culture), .after = Tail_P) %>%
+  arrange(Tail, desc(T_Par1), Gini) %>%
+  flextable() %>%
+  autofit()
+
+# Save Word format table (landscape), and RData object
+read_docx() %>%
+  body_add_flextable(value = Tab_Settlements) %>%
+  body_end_section_landscape() %>%
+  print(target = "Tables/Tab_Settlements.docx" )
+
+save(Tab_Settlements, file = "Tables/Tab_Settlements.RData")
+
+# Check normality specifically for Talne 3, see text
+filter(my_settlements, Settlement == "Talne 3") %>%
+  pull(house_size) %>%
+  shapiro.test() # Normality cannot be excluded
+
+# Quarters
+
+# Test the entire distributions and make table of results
+Tab_Quarters <- whole.dist(x = by_quarters$house_size,
+                             set = by_quarters$Quarter,
+                             culture = by_quarters$Culture)
+
+# Add results for tails, merge and tidy
+tab_quart_tails <- filter(quarters_results, model == FALSE) %>%
+  group_by(set, tail, par1, xmin, ntail) %>%
+  summarise() %>%
+  ungroup() %>%
+  mutate(Settlement = set, Tail = tail, T_Par1 = round(par1, 3),
+         xmin = round(xmin, 1), N_tail = ntail,
+         .keep = "none")
+
+Tab_Quarters <- left_join(Tab_Quarters, tab_quart_tails,
+                          by = "Settlement") %>%
+  rename(Quarter = Settlement) %>%
+  relocate(c(N, N_tail), .after = xmin) %>%
+  relocate(c(Tail, T_Par1), .after = Par2) %>%
+  mutate(Tail_P = round(N_tail/N, 2),
+         Quarter = if_else(Culture == "Trypillia",
+                           paste0("Neb. ", Quarter), Quarter)) %>%
+  relocate(c(Gini, Culture), .after = Tail_P) %>%
+  arrange(Tail, desc(T_Par1), Gini) %>%
+  flextable() %>%
+  autofit()
+
+read_docx() %>%
+  body_add_flextable(value = Tab_Quarters) %>%
+  body_end_section_landscape() %>%
+  print(target = "Tables/Tab_Quarters.docx" )
+
+save(Tab_Quarters, file = "Tables/Tab_Quarters.RData")
+
+# Time
+
+# Analyse whole distribution and make table(s)
+Tab_Time <- whole.dist(x = vrable_samples$house_size,
+                         set = vrable_samples$sample,
+                         culture = "Vr\u00e1ble")
+Tab_Time_SW <- whole.dist(x = vrable_SW_samples$house_size,
+                            set = vrable_SW_samples$sample,
+                            culture = "Vr\u00e1ble SW*")
+
+# Add results for tails, merge and tidy
+tab_time_tails <- filter(vrable_results, model == FALSE) %>%
+  group_by(set, dates, tail, par1, xmin, ntail) %>%
+  summarise() %>%
+  ungroup() %>%
+  mutate(Tail = tail, T_Par1 = round(par1, 3),
+         xmin = round(xmin, 1), BCE = dates,
+         N_tail = ntail, Sample = as.factor(set), .keep = "none")
+tab_time_SW_tails <- filter(vrable_SW_results, model == FALSE) %>%
+  group_by(set, dates, tail, par1, xmin, ntail) %>%
+  summarise() %>%
+  ungroup() %>%
+  mutate(Tail = tail, T_Par1 = round(par1, 3),
+         xmin = round(xmin, 1), BCE = dates,
+         N_tail = ntail, Sample = as.factor(set), .keep = "none")
+
+Tab_Time <- left_join(Tab_Time, tab_time_tails,
+                      by = c("Settlement" = "Sample")) %>%
+  select(2:12) %>%
+  mutate(Tail_P = round(N_tail/N, 2)) %>%
+  relocate(BCE, .before = Model) %>%
+  relocate(c(Tail, T_Par1), .after = Par2) %>%
+  relocate(c(Gini, Culture), .after = Tail_P) %>%
+  relocate(xmin, .before = N) %>%
+  rename(Set = Culture) %>%
+  arrange(BCE)
+
+Tab_Time_SW <- left_join(Tab_Time_SW, tab_time_SW_tails,
+                           by = c("Settlement" = "Sample")) %>%
+  select(2:12) %>%
+  mutate(Tail_P = round(N_tail/N, 2)) %>%
+  relocate(BCE, .before = Model) %>%
+  relocate(c(Tail, T_Par1), .after = Par2) %>%
+  relocate(c(Gini, Culture), .after = Tail_P) %>%
+  relocate(xmin, .before = N) %>%
+  rename(Set = Culture) %>%
+  arrange(BCE)
+
+Tab_Time <- bind_rows(Tab_Time, Tab_Time_SW) %>%
+  as_grouped_data(groups = "Set") %>%
+  flextable() %>%
+  autofit()
+
+# Save Word format table (landscape), and RData object
+read_docx() %>%
+  body_add_flextable(value = Tab_Time) %>%
+  body_end_section_landscape() %>%
+  print(target = "Tables/Tab_Time.docx" )
+
+save(Tab_Time, file = "Tables/Tab_Time.RData")
 
